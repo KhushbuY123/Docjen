@@ -1,18 +1,28 @@
 const path = require("path");
 const chalk = require("chalk");
 const oraModule = require("ora");
-
-const writeApiDocs = require("./writer/apiDocWriter");
-const writeProjectOverview = require("./writer/projectOverviewWriter");
-const writeApiTestingGuide = require("./writer/apiTestingWriter");
-const writeSchemaDocs = require("./writer/schemaWriter");
-const saveDoc = require("./writer/saveDoc");
+require("dotenv").config();
 
 const scanFiles = require("./scanner/scanFiles");
 const extractRoutes = require("./parser/routeParser");
 const extractTables = require("./parser/tableParser");
+const generateDocs = require("./ai/generateDocs");
+const saveDoc = require("./writer/saveDoc");
 
 const ora = typeof oraModule === "function" ? oraModule : oraModule.default;
+
+/*
+Split AI response into sections
+*/
+function splitDocs(text) {
+  return {
+    api: text.split("---API_DOCS---")[1]?.split("---DB_SCHEMA---")[0] || "",
+    db:
+      text.split("---DB_SCHEMA---")[1]?.split("---PROJECT_OVERVIEW---")[0] ||
+      "",
+    overview: text.split("---PROJECT_OVERVIEW---")[1] || "",
+  };
+}
 
 async function start(projectPath) {
   const resolvedPath = path.resolve(projectPath);
@@ -23,7 +33,9 @@ async function start(projectPath) {
   }).start();
 
   try {
-    // 1️⃣ Scan files
+    /*
+    1️⃣ Scan project files
+    */
     const files = await scanFiles(resolvedPath);
 
     spinner.succeed(
@@ -39,7 +51,9 @@ async function start(projectPath) {
       return;
     }
 
-    // 2️⃣ Extract routes
+    /*
+    2️⃣ Extract routes
+    */
     let routes = [];
 
     for (const file of files) {
@@ -49,6 +63,9 @@ async function start(projectPath) {
 
     console.log(chalk.cyan(`Detected routes: ${routes.length}`));
 
+    /*
+    3️⃣ Extract tables
+    */
     let tables = [];
 
     for (const file of files) {
@@ -56,17 +73,31 @@ async function start(projectPath) {
       tables = tables.concat(detectedTables);
     }
 
-    // 3️⃣ Generate docs
-    const apiDocs = writeApiDocs(routes);
-    const overview = writeProjectOverview(resolvedPath, files, routes);
-    const testingGuide = writeApiTestingGuide(routes);
-    const schema = writeSchemaDocs(tables);
+    console.log(chalk.cyan(`Detected tables: ${tables.length}`));
 
-    // 4️⃣ Save docs
-    saveDoc("api.md", apiDocs, resolvedPath);
-    saveDoc("project-overview.md", overview, resolvedPath);
-    saveDoc("api-testing.md", testingGuide, resolvedPath);
-    saveDoc("database-schema.md", schema, resolvedPath);
+    /*
+    4️⃣ Generate AI docs
+    */
+    const aiSpinner = ora({
+      text: "Generating AI documentation...",
+      color: "yellow",
+    }).start();
+
+    const aiOutput = await generateDocs(routes, tables, files);
+
+    aiSpinner.succeed("AI documentation generated.");
+
+    /*
+    5️⃣ Split AI response
+    */
+    const docs = splitDocs(aiOutput);
+
+    /*
+    6️⃣ Save docs
+    */
+    saveDoc("api.md", docs.api, resolvedPath);
+    saveDoc("database-schema.md", docs.db, resolvedPath);
+    saveDoc("project-overview.md", docs.overview, resolvedPath);
 
     console.log(
       chalk.green.bold("\n✅ Documentation successfully generated.\n"),

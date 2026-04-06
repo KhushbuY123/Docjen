@@ -1,128 +1,67 @@
-const path = require("path");
-const fs = require("fs-extra");
-const chalk = require("chalk");
+const fs = require("fs");
+const { GoogleGenerativeAI } = require("@google/generative-ai");
 
-/**
- * Simple heuristic documentation generator:
- * - For each JS file, reads the source
- * - Extracts top-level function and class names
- * - Writes a Markdown file under a /docs folder with a short summary
- *
- * This does not call any external AI service – it just gives you
- * structured, automatically-generated docs you can extend later.
- *
- * @param {string[]} files - Absolute paths to JavaScript files.
- * @param {string} projectRoot - Absolute path to the project root being scanned.
- */
-async function generateDocs(files, projectRoot) {
-  const docsDir = path.join(projectRoot, "docs");
-  await fs.ensureDir(docsDir);
+/** Gemini 1.5 model IDs are retired for many keys; use 2.5+ IDs. See https://ai.google.dev/gemini-api/docs/models/gemini */
+const MODEL = process.env.GEMINI_MODEL || "gemini-2.5-flash";
 
-  const indexLines = ["# Project Documentation", ""];
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
-  for (const filePath of files) {
-    const relative = path.relative(projectRoot, filePath);
-    const source = await fs.readFile(filePath, "utf8");
+async function generateDocs(routes, tables, files) {
+  const model = genAI.getGenerativeModel({
+    model: MODEL,
+  });
 
-    const functions = extractFunctions(source);
-    const classes = extractClasses(source);
+  let codeContext = "";
 
-    const docContent = buildFileDoc(relative, functions, classes);
-
-    // One markdown file per source file, mirroring the directory structure.
-    const targetPath = path.join(
-      docsDir,
-      relative.replace(/\.js$/, ".md")
-    );
-
-    await fs.ensureDir(path.dirname(targetPath));
-    await fs.writeFile(targetPath, docContent, "utf8");
-
-    indexLines.push(
-      `- [${relative.replace(/\\/g, "/")}](${relative
-        .replace(/\.js$/, ".md")
-        .replace(/\\/g, "/")})`
-    );
+  for (const file of files) {
+    const content = fs.readFileSync(file, "utf8");
+    codeContext += `\nFILE: ${file}\n${content}\n`;
   }
 
-  const indexPath = path.join(docsDir, "index.md");
-  await fs.writeFile(indexPath, indexLines.join("\n") + "\n", "utf8");
+  const routesSummary =
+    routes.length > 0 ? JSON.stringify(routes, null, 2) : "(none detected)";
+  const tablesSummary =
+    tables.length > 0 ? JSON.stringify(tables, null, 2) : "(none detected)";
 
-  console.log(
-    chalk.cyan(
-      `\n📚 Docs generated in: ${
-        path.relative(process.cwd(), docsDir) || docsDir
-      }`
-    )
-  );
-}
+  const prompt = `
+You are a senior backend developer.
 
-function extractFunctions(source) {
-  const names = new Set();
+Detected routes (from static analysis):
+${routesSummary}
 
-  const functionDecl = /function\s+([A-Za-z0-9_$]+)\s*\(/g;
-  const funcExpr = /const\s+([A-Za-z0-9_$]+)\s*=\s*(async\s*)?\(/g;
-  const arrowFunc =
-    /const\s+([A-Za-z0-9_$]+)\s*=\s*(async\s*)?\([\s\S]*?\)\s*=>/g;
+Detected database tables (from static analysis):
+${tablesSummary}
 
-  let match;
-  while ((match = functionDecl.exec(source))) {
-    names.add(match[1]);
-  }
-  while ((match = funcExpr.exec(source))) {
-    names.add(match[1]);
-  }
-  while ((match = arrowFunc.exec(source))) {
-    names.add(match[1]);
-  }
+Analyze the following Node.js backend project code and generate 3 markdown documents:
 
-  return Array.from(names);
-}
+1. API Documentation
+2. Database Schema
+3. Project Overview
 
-function extractClasses(source) {
-  const names = new Set();
-  const classDecl = /class\s+([A-Za-z0-9_$]+)/g;
-  let match;
-  while ((match = classDecl.exec(source))) {
-    names.add(match[1]);
-  }
-  return Array.from(names);
-}
+Requirements:
+- Explain API purpose
+- Include request body, params, query
+- Provide curl examples
+- Detect database tables if possible
+- Group APIs by module
 
-function buildFileDoc(relativePath, functions, classes) {
-  const lines = [];
+Return the result in this format:
 
-  lines.push(`# ${relativePath}`);
-  lines.push("");
+---API_DOCS---
+(markdown)
 
-  if (classes.length === 0 && functions.length === 0) {
-    lines.push(
-      "_No top-level functions or classes were detected in this file._"
-    );
-    lines.push("");
-    return lines.join("\n");
-  }
+---DB_SCHEMA---
+(markdown)
 
-  if (classes.length) {
-    lines.push("## Classes");
-    lines.push("");
-    for (const name of classes) {
-      lines.push(`- **${name}**: Class defined in \`${relativePath}\`.`);
-    }
-    lines.push("");
-  }
+---PROJECT_OVERVIEW---
+(markdown)
 
-  if (functions.length) {
-    lines.push("## Functions");
-    lines.push("");
-    for (const name of functions) {
-      lines.push(`- **${name}**: Function defined in \`${relativePath}\`.`);
-    }
-    lines.push("");
-  }
+Code:
+${codeContext}
+`;
 
-  return lines.join("\n");
+  const result = await model.generateContent(prompt);
+  return result.response.text();
 }
 
 module.exports = generateDocs;
-
