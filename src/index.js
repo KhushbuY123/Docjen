@@ -1,4 +1,5 @@
 const path = require("path");
+const readline = require("readline/promises");
 const chalk = require("chalk");
 const oraModule = require("ora");
 require("dotenv").config();
@@ -25,6 +26,53 @@ function splitDocs(text) {
       "",
     overview: text.split("---PROJECT_OVERVIEW---")[1] || "",
   };
+}
+
+async function askGeminiConfig() {
+  const envApiKey = (process.env.GEMINI_API_KEY || "").trim();
+  const envModel = process.env.GEMINI_MODEL || "gemini-2.5-flash";
+
+  if (!process.stdin.isTTY || !process.stdout.isTTY) {
+    if (envApiKey) {
+      return { apiKey: envApiKey, model: envModel.trim() };
+    }
+
+    throw new Error(
+      "GEMINI_API_KEY is missing. Set it in environment variables (or .env) for non-interactive usage.",
+    );
+  }
+
+  const rl = readline.createInterface({
+    input: process.stdin,
+    output: process.stdout,
+  });
+
+  try {
+    console.log(chalk.yellow("Enter Gemini credentials to continue."));
+    if (envApiKey) {
+      console.log(
+        chalk.gray(
+          "Press Enter on API key to use the existing GEMINI_API_KEY from your environment.",
+        ),
+      );
+    }
+
+    const enteredKey = await rl.question("Gemini API key: ");
+    const enteredModel = await rl.question(
+      `Gemini model (default: ${envModel}): `,
+    );
+
+    const apiKey = enteredKey.trim() || envApiKey;
+    const model = enteredModel.trim() || envModel;
+
+    if (!apiKey) {
+      throw new Error("Gemini API key is required.");
+    }
+
+    return { apiKey, model };
+  } finally {
+    rl.close();
+  }
 }
 
 async function start(projectPath) {
@@ -81,12 +129,14 @@ async function start(projectPath) {
     /*
     4️⃣ Generate AI docs
     */
+    const geminiConfig = await askGeminiConfig();
+
     const aiSpinner = ora({
       text: "Generating AI documentation...",
       color: "yellow",
     }).start();
 
-    const aiOutput = await generateDocs(routes, tables, files);
+    const aiOutput = await generateDocs(routes, tables, files, geminiConfig);
 
     aiSpinner.succeed("AI documentation generated.");
 

@@ -31,12 +31,15 @@ cd ai-doc-generator
 npm install
 ```
 
-Create a `.env` file in the root:
+Create a `.env` file in the root (recommended):
 
 ```env
 GEMINI_API_KEY=your_api_key_here
 GEMINI_MODEL=gemini-2.5-flash
 ```
+
+The CLI prompts for Gemini credentials at runtime.  
+If `GEMINI_API_KEY` already exists in your environment, you can press Enter on the API key prompt to reuse it.
 
 Run on the current folder:
 

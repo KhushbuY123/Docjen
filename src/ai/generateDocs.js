@@ -1,14 +1,12 @@
 const fs = require("fs");
 const { GoogleGenerativeAI } = require("@google/generative-ai");
 
-/** Gemini 1.5 model IDs are retired for many keys; use 2.5+ IDs. See https://ai.google.dev/gemini-api/docs/models/gemini */
-const MODEL = process.env.GEMINI_MODEL || "gemini-2.5-flash";
-
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-
-async function generateDocs(routes, tables, files) {
+async function generateDocs(routes, tables, files, geminiConfig) {
+  const modelName = geminiConfig?.model || "gemini-2.5-flash";
+  const apiKey = geminiConfig?.apiKey;
+  const genAI = new GoogleGenerativeAI(apiKey);
   const model = genAI.getGenerativeModel({
-    model: MODEL,
+    model: modelName,
   });
 
   let codeContext = "";
