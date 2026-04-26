@@ -23,48 +23,35 @@ This CLI scans a Node.js/TypeScript project, detects routes/tables, sends contex
 - Node.js 18+ (recommended)
 - A Gemini API key
 
-## Quick Start
+## Install
 
 ```bash
-git clone <your-repo-url>
-cd ai-doc-generator
-npm install
+npm i -g ai-doc-generator
 ```
 
-Create a `.env` file in the root (recommended):
+## User Flow
 
-```env
-GEMINI_API_KEY=your_api_key_here
-GEMINI_MODEL=gemini-2.5-flash
-```
-
-The CLI prompts for Gemini credentials at runtime.  
-If `GEMINI_API_KEY` already exists in your environment, you can press Enter on the API key prompt to reuse it.
-
-Run on the current folder:
+1. Open terminal in your backend project.
+2. Run:
 
 ```bash
 docgen .
 ```
 
-Run on another project path:
+3. On first run (if no saved config and no `GEMINI_API_KEY` is set), the CLI asks for:
+   - Gemini API key
+   - Gemini model (default: `gemini-2.5-flash`)
+4. After successful run, credentials are saved to your user profile and reused automatically.
+5. If `GEMINI_API_KEY` is set in environment variables, that value is used and also cached for future runs.
+6. Generated docs are written to:
+   - `docs/api-testing-guide.md`
+   - `docs/database-schema.md`
+   - `docs/project-overview.md`
+
+Run against another folder:
 
 ```bash
 docgen "D:\path\to\your-project"
-```
-
-## Global CLI Usage (optional)
-
-To use it as a command from anywhere:
-
-```bash
-npm link
-```
-
-Then run in any target project:
-
-```bash
-docgen .
 ```
 
 ## How It Works
@@ -78,7 +65,7 @@ docgen .
 ## Troubleshooting
 
 - **`models/... not found`**
-  - Use a current model in `.env`, for example:
+  - Use a current model (prompt or env var), for example:
   - `GEMINI_MODEL=gemini-2.5-flash`
 - **Very slow on large projects**
   - Exclude generated folders and large artifacts

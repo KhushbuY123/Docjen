@@ -1,4 +1,6 @@
 const path = require("path");
+const fs = require("fs");
+const os = require("os");
 const readline = require("readline/promises");
 const chalk = require("chalk");
 const oraModule = require("ora");
@@ -11,6 +13,8 @@ const generateDocs = require("./ai/generateDocs");
 const saveDoc = require("./writer/saveDoc");
 
 const ora = typeof oraModule === "function" ? oraModule : oraModule.default;
+const CONFIG_DIR = path.join(os.homedir(), ".ai-doc-generator");
+const CONFIG_PATH = path.join(CONFIG_DIR, "config.json");
 
 /*
 Split AI response into sections
@@ -31,14 +35,24 @@ function splitDocs(text) {
 async function askGeminiConfig() {
   const envApiKey = (process.env.GEMINI_API_KEY || "").trim();
   const envModel = process.env.GEMINI_MODEL || "gemini-2.5-flash";
+  const saved = readSavedGeminiConfig();
+
+  if (envApiKey) {
+    const config = { apiKey: envApiKey, model: envModel.trim() };
+    saveGeminiConfig(config);
+    return config;
+  }
+
+  if (saved?.apiKey) {
+    return {
+      apiKey: saved.apiKey.trim(),
+      model: (saved.model || envModel).trim(),
+    };
+  }
 
   if (!process.stdin.isTTY || !process.stdout.isTTY) {
-    if (envApiKey) {
-      return { apiKey: envApiKey, model: envModel.trim() };
-    }
-
     throw new Error(
-      "GEMINI_API_KEY is missing. Set it in environment variables (or .env) for non-interactive usage.",
+      "GEMINI_API_KEY is missing. Set it in environment variables (or .env), or run once interactively to save credentials.",
     );
   }
 
@@ -49,29 +63,51 @@ async function askGeminiConfig() {
 
   try {
     console.log(chalk.yellow("Enter Gemini credentials to continue."));
-    if (envApiKey) {
-      console.log(
-        chalk.gray(
-          "Press Enter on API key to use the existing GEMINI_API_KEY from your environment.",
-        ),
-      );
-    }
-
     const enteredKey = await rl.question("Gemini API key: ");
     const enteredModel = await rl.question(
       `Gemini model (default: ${envModel}): `,
     );
 
-    const apiKey = enteredKey.trim() || envApiKey;
+    const apiKey = enteredKey.trim();
     const model = enteredModel.trim() || envModel;
 
     if (!apiKey) {
       throw new Error("Gemini API key is required.");
     }
 
-    return { apiKey, model };
+    const config = { apiKey, model };
+    saveGeminiConfig(config);
+    return config;
   } finally {
     rl.close();
+  }
+}
+
+function readSavedGeminiConfig() {
+  if (!fs.existsSync(CONFIG_PATH)) {
+    return null;
+  }
+
+  try {
+    const raw = fs.readFileSync(CONFIG_PATH, "utf8");
+    const parsed = JSON.parse(raw);
+
+    if (typeof parsed?.apiKey !== "string" || parsed.apiKey.trim() === "") {
+      return null;
+    }
+
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+function saveGeminiConfig(config) {
+  try {
+    fs.mkdirSync(CONFIG_DIR, { recursive: true });
+    fs.writeFileSync(CONFIG_PATH, JSON.stringify(config, null, 2), "utf8");
+  } catch {
+    // Ignore save errors; CLI can still run with in-memory credentials.
   }
 }
 
