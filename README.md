@@ -99,7 +99,5 @@ Main files:
 - `src/ai/generateDocs.js` - Gemini generation
 - `src/writer/saveDoc.js` - writes markdown files
 
-## License
 
-ISC
 
