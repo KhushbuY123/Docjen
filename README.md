@@ -41,13 +41,13 @@ GEMINI_MODEL=gemini-2.5-flash
 Run on the current folder:
 
 ```bash
-node bin/docgen.js .
+docgen .
 ```
 
 Run on another project path:
 
 ```bash
-node bin/docgen.js "D:\path\to\your-project"
+docgen "D:\path\to\your-project"
 ```
 
 ## Global CLI Usage (optional)
@@ -61,7 +61,7 @@ npm link
 Then run in any target project:
 
 ```bash
-ai-doc-generator .
+docgen .
 ```
 
 ## How It Works

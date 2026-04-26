@@ -1,21 +1,39 @@
 {
   "name": "ai-doc-generator",
   "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
+  "description": "Generate backend project documentation from source code using Gemini.",
+  "main": "src/index.js",
   "bin": {
-    "ai-doc-generator": "bin/docgen.js"
+    "ai-doc-generator": "bin/docgen.js",
+    "docgen": "bin/docgen.js"
   },
+  "files": [
+    "bin",
+    "src",
+    "README.md"
+  ],
   "directories": {
     "doc": "docs"
   },
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "node -e \"console.log('No automated tests configured yet.')\"",
+    "check:bin": "node -e \"const fs=require('fs');const entry=fs.readFileSync('bin/docgen.js','utf8');if(!entry.startsWith('#!/usr/bin/env node')){throw new Error('Missing shebang in bin/docgen.js')}console.log('CLI shebang check passed.')\"",
+    "check:pack": "npm pack --dry-run",
+    "prepublishOnly": "npm run check:bin && npm run check:pack"
   },
-  "keywords": [],
-  "author": "",
+  "keywords": [
+    "cli",
+    "documentation",
+    "docgen",
+    "gemini",
+    "nodejs"
+  ],
+  "author": "khush",
   "license": "ISC",
   "type": "commonjs",
+  "engines": {
+    "node": ">=18"
+  },
   "dependencies": {
     "@google/generative-ai": "^0.24.1",
     "chalk": "^4.1.2",
