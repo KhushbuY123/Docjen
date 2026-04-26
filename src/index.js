@@ -16,7 +16,10 @@ Split AI response into sections
 */
 function splitDocs(text) {
   return {
-    api: text.split("---API_DOCS---")[1]?.split("---DB_SCHEMA---")[0] || "",
+    apiTestingGuide:
+      text.split("---API_TESTING_GUIDE---")[1]?.split("---DB_SCHEMA---")[0] ||
+      text.split("---API_DOCS---")[1]?.split("---DB_SCHEMA---")[0] ||
+      "",
     db:
       text.split("---DB_SCHEMA---")[1]?.split("---PROJECT_OVERVIEW---")[0] ||
       "",
@@ -95,7 +98,7 @@ async function start(projectPath) {
     /*
     6️⃣ Save docs
     */
-    saveDoc("api.md", docs.api, resolvedPath);
+    saveDoc("api-testing-guide.md", docs.apiTestingGuide, resolvedPath);
     saveDoc("database-schema.md", docs.db, resolvedPath);
     saveDoc("project-overview.md", docs.overview, resolvedPath);
 

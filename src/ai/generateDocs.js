@@ -34,7 +34,7 @@ ${tablesSummary}
 
 Analyze the following Node.js backend project code and generate 3 markdown documents:
 
-1. API Documentation
+1. API Testing Guide (how to call endpoints: curl examples, query/body/params, auth if any)
 2. Database Schema
 3. Project Overview
 
@@ -47,7 +47,7 @@ Requirements:
 
 Return the result in this format:
 
----API_DOCS---
+---API_TESTING_GUIDE---
 (markdown)
 
 ---DB_SCHEMA---
